@@ -61,7 +61,7 @@ module.exports.genSalt = function(rounds, ignore, cb) {
 };
 
 /// hash data using a salt
-/// @param {String} data the data to encrypt
+/// @param {Buffer} data the data to encrypt
 /// @param {String} salt the salt to use when hashing
 /// @return {String} hash
 module.exports.hashSync = function(data, salt) {
@@ -69,8 +69,8 @@ module.exports.hashSync = function(data, salt) {
         throw new Error('data and salt arguments required');
     }
 
-    if (typeof data !== 'string' || (typeof salt !== 'string' && typeof salt !== 'number')) {
-        throw new Error('data must be a string and salt must either be a salt string or a number of rounds');
+    if (!(data instanceof Buffer) || (typeof salt !== 'string' && typeof salt !== 'number')) {
+        throw new Error('data must be a buffer and salt must either be a salt string or a number of rounds');
     }
 
     if (typeof salt === 'number') {
@@ -81,7 +81,7 @@ module.exports.hashSync = function(data, salt) {
 };
 
 /// hash data using a salt
-/// @param {String} data the data to encrypt
+/// @param {Buffer} data the data to encrypt
 /// @param {String} salt the salt to use when hashing
 /// @param {Function} cb callback(err, hash)
 module.exports.hash = function(data, salt, cb) {
@@ -103,9 +103,9 @@ module.exports.hash = function(data, salt, cb) {
         });
     }
 
-    if (typeof data !== 'string' || (typeof salt !== 'string' && typeof salt !== 'number')) {
+    if (!(data instanceof Buffer) || (typeof salt !== 'string' && typeof salt !== 'number')) {
         return process.nextTick(function() {
-            cb(new Error('data must be a string and salt must either be a salt string or a number of rounds'));
+            cb(new Error('data must be a buffer and salt must either be a salt string or a number of rounds'));
         });
     }
 
@@ -123,7 +123,7 @@ module.exports.hash = function(data, salt, cb) {
 };
 
 /// compare raw data to hash
-/// @param {String} data the data to hash and compare
+/// @param {Buffer} data the data to hash and compare
 /// @param {String} hash expected hash
 /// @return {bool} true if hashed data matches hash
 module.exports.compareSync = function(data, hash) {
@@ -131,15 +131,15 @@ module.exports.compareSync = function(data, hash) {
         throw new Error('data and hash arguments required');
     }
 
-    if (typeof data !== 'string' || typeof hash !== 'string') {
-        throw new Error('data and hash must be strings');
+    if (!(data instanceof Buffer) || typeof hash !== 'string') {
+        throw new Error('data must be a buffer and hash must be a string');
     }
 
     return bindings.compare_sync(data, hash);
 };
 
 /// compare raw data to hash
-/// @param {String} data the data to hash and compare
+/// @param {Buffer} data the data to hash and compare
 /// @param {String} hash expected hash
 /// @param {Function} cb callback(err, matched) - matched is true if hashed data matches hash
 module.exports.compare = function(data, hash, cb) {
@@ -149,9 +149,9 @@ module.exports.compare = function(data, hash, cb) {
         });
     }
 
-    if (typeof data !== 'string' || typeof hash !== 'string') {
+    if (!(data instanceof Buffer) || typeof hash !== 'string') {
         return process.nextTick(function() {
-            cb(new Error('data and hash must be strings'));
+            cb(new Error('data must be a buffer and hash must be a string'));
         });
     }
 

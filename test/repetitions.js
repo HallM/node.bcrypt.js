@@ -27,7 +27,7 @@ module.exports = {
     var SALT = '$2a$04$TnjywYklQbbZjdjBgBoA4e';
     var n = 0;
     for (var i = 0; i < EXPECTED; i++) {
-      bcrypt.hash('test', SALT, function(err, crypted) {
+      bcrypt.hash(new Buffer('test'), SALT, function(err, crypted) {
         assert.equals(60, crypted.length, "Encrypted ("+crypted+") isn't the correct length. It is: " + crypted.length);
         n++;
       });
@@ -47,7 +47,7 @@ module.exports = {
     var HASH = '$2a$04$TnjywYklQbbZjdjBgBoA4e9G7RJt9blgMgsCvUvus4Iv4TENB5nHy';
     var n = 0;
     for (var i = 0; i < EXPECTED; i++) {
-      bcrypt.compare('test', HASH, function(err, match) {
+      bcrypt.compare(new Buffer('test'), HASH, function(err, match) {
         assert.equal(true, match, "No match.");
         n++;
       });
@@ -75,13 +75,13 @@ module.exports = {
 
     function test(password) {
       idx += 1;
-      return bcrypt.hash(password, salt, function(err, hash) {
+      return bcrypt.hash(new Buffer(password), salt, function(err, hash) {
         if (err) throw err;
         //console.log('\nbcrypt iter ' + idx);
 
         assert.ok(hash);
 
-        bcrypt.compare(password, hash, function(err, res) {
+        bcrypt.compare(new Buffer(password), hash, function(err, res) {
           //if (err) throw err;
           assert.ok(res);
           if (idx >= (EXPECTED-1)) {
@@ -89,7 +89,7 @@ module.exports = {
           }
         });
 
-        bcrypt.compare('bad' + password, hash, function(err, res) {
+        bcrypt.compare(new Buffer('bad' + password), hash, function(err, res) {
           //if (err) throw err;
           assert.ok(!res);
           if (idx >= (EXPECTED-1)) {

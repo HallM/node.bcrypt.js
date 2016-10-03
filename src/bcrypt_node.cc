@@ -141,11 +141,13 @@ NAN_METHOD(GenerateSaltSync) {
 
 class EncryptAsyncWorker : public Nan::AsyncWorker {
   public:
-    EncryptAsyncWorker(Nan::Callback *callback, std::string input, std::string salt)
-        : Nan::AsyncWorker(callback), input(input), salt(salt) {
+    EncryptAsyncWorker(Nan::Callback *callback, char* input, size_t inputLength, std::string salt)
+        : Nan::AsyncWorker(callback), input(input), inputLength(inputLength), salt(salt) {
     }
 
-    ~EncryptAsyncWorker() {}
+    ~EncryptAsyncWorker() {
+        delete input;
+    }
 
     void Execute() {
         if (!(ValidateSalt(salt.c_str()))) {
@@ -153,7 +155,7 @@ class EncryptAsyncWorker : public Nan::AsyncWorker {
         }
 
         char bcrypted[_PASSWORD_LEN];
-        bcrypt(input.c_str(), salt.c_str(), bcrypted);
+        bcrypt(input, inputLength, salt.c_str(), bcrypted);
         output = std::string(bcrypted);
     }
 
@@ -174,7 +176,8 @@ class EncryptAsyncWorker : public Nan::AsyncWorker {
     }
 
   private:
-    std::string input;
+    char* input;
+    size_t inputLength;
     std::string salt;
     std::string error;
     std::string output;
@@ -188,12 +191,19 @@ NAN_METHOD(Encrypt) {
         return;
     }
 
-    Nan::Utf8String data(info[0]->ToString());
+    Local<Object> dataObj = info[0]->ToObject();
+    char* data = Buffer::Data(dataObj);
+    size_t dataLength = Buffer::Length(dataObj);
+    char* copiedData = new char[(dataLength + 1)];
+    memset(copiedData, 0, sizeof(char) * (dataLength + 1));
+    memcpy(copiedData, data, dataLength);
+
+    // Nan::Utf8String data(info[0]->ToString());
     Nan::Utf8String salt(info[1]->ToString());
     Local<Function> callback = Local<Function>::Cast(info[2]);
 
     EncryptAsyncWorker* encryptWorker = new EncryptAsyncWorker(new Nan::Callback(callback),
-        std::string(*data), std::string(*salt));
+        copiedData, dataLength, std::string(*salt));
 
     Nan::AsyncQueueWorker(encryptWorker);
 }
@@ -207,7 +217,16 @@ NAN_METHOD(EncryptSync) {
         return;
     }
 
-    Nan::Utf8String data(info[0]->ToString());
+    Local<Object> dataObj = info[0]->ToObject();
+    char* data = Buffer::Data(dataObj);
+    size_t dataLength = Buffer::Length(dataObj);
+
+    // we need to extend the data by 1 for the null byte
+    char* copiedData = new char[(dataLength + 1)];
+    memset(copiedData, 0, sizeof(char) * (dataLength + 1));
+    memcpy(copiedData, data, dataLength);
+
+    // Nan::Utf8String data(info[0]->ToString());
     Nan::Utf8String salt(info[1]->ToString());
 
     if (!(ValidateSalt(*salt))) {
@@ -217,8 +236,9 @@ NAN_METHOD(EncryptSync) {
     }
 
     char bcrypted[_PASSWORD_LEN];
-    bcrypt(*data, *salt, bcrypted);
+    bcrypt(copiedData, dataLength, *salt, bcrypted);
     info.GetReturnValue().Set(Nan::Encode(bcrypted, strlen(bcrypted), Nan::BINARY));
+    delete copiedData;
 }
 
 /* COMPARATOR */
@@ -248,18 +268,20 @@ NAN_INLINE bool CompareStrings(const char* s1, const char* s2) {
 
 class CompareAsyncWorker : public Nan::AsyncWorker {
   public:
-    CompareAsyncWorker(Nan::Callback *callback, std::string input, std::string encrypted)
-        : Nan::AsyncWorker(callback), input(input), encrypted(encrypted) {
+    CompareAsyncWorker(Nan::Callback *callback, char* input, size_t inputLength, std::string encrypted)
+        : Nan::AsyncWorker(callback), input(input), inputLength(inputLength), encrypted(encrypted) {
 
         result = false;
     }
 
-    ~CompareAsyncWorker() {}
+    ~CompareAsyncWorker() {
+        delete input;
+    }
 
     void Execute() {
         char bcrypted[_PASSWORD_LEN];
         if (ValidateSalt(encrypted.c_str())) {
-            bcrypt(input.c_str(), encrypted.c_str(), bcrypted);
+            bcrypt(input, inputLength, encrypted.c_str(), bcrypted);
             result = CompareStrings(bcrypted, encrypted.c_str());
         }
     }
@@ -274,7 +296,8 @@ class CompareAsyncWorker : public Nan::AsyncWorker {
     }
 
   private:
-    std::string input;
+    char* input;
+    size_t inputLength;
     std::string encrypted;
     bool result;
 };
@@ -287,12 +310,19 @@ NAN_METHOD(Compare) {
         return;
     }
 
-    Nan::Utf8String input(info[0]->ToString());
+    Local<Object> dataObj = info[0]->ToObject();
+    char* data = Buffer::Data(dataObj);
+    size_t dataLength = Buffer::Length(dataObj);
+    char* copiedData = new char[(dataLength + 1)];
+    memset(copiedData, 0, sizeof(char) * (dataLength + 1));
+    memcpy(copiedData, data, dataLength);
+
+    // Nan::Utf8String input(info[0]->ToString());
     Nan::Utf8String encrypted(info[1]->ToString());
     Local<Function> callback = Local<Function>::Cast(info[2]);
 
     CompareAsyncWorker* compareWorker = new CompareAsyncWorker(new Nan::Callback(callback),
-        std::string(*input), std::string(*encrypted));
+        copiedData, dataLength, std::string(*encrypted));
 
     Nan::AsyncQueueWorker(compareWorker);
 }
@@ -306,16 +336,24 @@ NAN_METHOD(CompareSync) {
         return;
     }
 
-    Nan::Utf8String pw(info[0]->ToString());
+    Local<Object> dataObj = info[0]->ToObject();
+    char* data = Buffer::Data(dataObj);
+    size_t dataLength = Buffer::Length(dataObj);
+    char* copiedData = new char[(dataLength + 1)];
+    memset(copiedData, 0, sizeof(char) * (dataLength + 1));
+    memcpy(copiedData, data, dataLength);
+
+    // Nan::Utf8String pw(info[0]->ToString());
     Nan::Utf8String hash(info[1]->ToString());
 
     char bcrypted[_PASSWORD_LEN];
     if (ValidateSalt(*hash)) {
-        bcrypt(*pw, *hash, bcrypted);
+        bcrypt(copiedData, dataLength, *hash, bcrypted);
         info.GetReturnValue().Set(Nan::New<Boolean>(CompareStrings(bcrypted, *hash)));
     } else {
         info.GetReturnValue().Set(Nan::False());
     }
+    delete copiedData;
 }
 
 NAN_METHOD(GetRounds) {

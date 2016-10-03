@@ -51,7 +51,7 @@
 #include <string.h>
 #include "node_blf.h"
 
-#ifdef _WIN32 
+#ifdef _WIN32
 #define snprintf _snprintf
 #endif
 
@@ -162,7 +162,7 @@ bcrypt_gensalt(u_int8_t log_rounds, u_int8_t *seed, char *gsalt)
    i.e. $2$04$iwouldntknowwhattosayetKdJ6iFtacBqJdKe6aW7ou */
 
 void
-bcrypt(const char *key, const char *salt, char *encrypted)
+bcrypt(const char *key, const size_t keyLength, const char *salt, char *encrypted)
 {
 	blf_ctx state;
 	u_int32_t rounds, i, k;
@@ -205,7 +205,7 @@ bcrypt(const char *key, const char *salt, char *encrypted)
 		strcpy(encrypted, error);
 		return;
 	}
-	
+
 	/* Computer power doesn't increase linear, 2^x should be fine */
 	n = atoi(salt);
 	if (n > 31 || n < 0) {
@@ -229,7 +229,7 @@ bcrypt(const char *key, const char *salt, char *encrypted)
 	/* We dont want the base64 salt but the raw data */
 	decode_base64(csalt, BCRYPT_MAXSALT, (u_int8_t *) salt);
 	salt_len = BCRYPT_MAXSALT;
-	key_len = strlen(key) + (minor >= 'a' ? 1 : 0);
+	key_len = keyLength + (minor >= 'a' ? 1 : 0);
 
 
 	/* Setting up S-Boxes and Subkeys */
